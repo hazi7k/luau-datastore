@@ -29,7 +29,7 @@ local function SafeWrite(Path, Data)
     assert(type(Path) == "string", "Path must be string");
 	assert(type(Data) == "string", "Data must be string");
 
-    local TempPath = Path .. "Temp";
+    local TempPath = Path .. ".tmp";
     fs.writeFile(TempPath, Data);
     fs.move(TempPath, Path, true);
 end
@@ -61,6 +61,7 @@ end
 function Datastore.CreateNewDatastore()
     local self = setmetatable({}, Datastore);
     self.Database = ReadStorage() or {};
+    self._IsModified = false;
     return self
 end
 
@@ -85,7 +86,8 @@ function Datastore:GetData(UserId)
     local Recall = EncodeJson(Data);
     self.Database[Key] = Data;
     if Recall ~= InitData then
-        WriteStorage(self.Database)
+        self._IsModified = true;
+        WriteStorage(self.Database);
     end
 
     return Data
@@ -103,7 +105,7 @@ function Datastore:SetData(UserId, Data)
     Data = Schema.Validate(Data);
 
     self.Database[Key] = Data;
-    WriteStorage(self.Database);
+    self._IsModified = true;
 end
 
 function Datastore:Update(UserId, Func)
@@ -117,12 +119,42 @@ function Datastore:Update(UserId, Func)
     return Updated
 end
 
+function Datastore:Reset(UserId)
+    local Key = tostring(UserId);
+    self.Database[Key] = {};
+    self._IsModified = true;
+    return self:GetData(UserId)
+end
+
+function Datastore:Delete(UserId)
+    local Key = tostring(UserId);
+
+    if self.Database[Key] ~= nil then
+        self.Database[Key] = nil;
+        self._IsModified = true;
+    end
+end
+
+function Datastore:Save()
+    WriteStorage(self.Database);
+    self._IsModified = false;
+end
+
+function Datastore:FlushIfModified()
+    if self._IsModified then
+        self:Save();
+        return true
+    end
+    return false
+end
+
 -- || Helper func
 function Datastore:_SetRaw(UserId, RawData)
     self.Database = self.Database or {};
     
     local Key = tostring(UserId);
     self.Database[Key] = RawData;
+    self._IsModified = true;
     WriteStorage(self.Database);
 end
 
