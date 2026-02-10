@@ -1,0 +1,6 @@
+storage.json
+backupfile.json
+*Temp
+aftman.toml
+aftman-lock.toml
+.DS_Store
